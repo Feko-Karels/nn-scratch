@@ -1,23 +1,33 @@
 import numpy as np
 import pandas as pd
 import matplotlib as plt
+import time
+start_time = time.time()
 
 train_data = pd.read_csv('mnist_train.csv')
 train_data = np.array(train_data)
 m, n = train_data.shape
+test_data = pd.read_csv('mnist_train.csv')
+test_data = np.array(test_data)
 
 class NN():
     def __init__(self):
-        W1 = np.random.rand(10, 784) - 0.5
-        b1 = np.random.rand(10, 1) - 0.5
-        W2 = np.random.rand(10, 10) - 0.5
+        W1 = np.random.rand(80, 784) - 0.5
+        b1 = np.random.rand(80, 1) - 0.5
+        W2 = np.random.rand(10, 80) - 0.5
         b2 = np.random.rand(10, 1) - 0.5
         self.theta = W1, b1, W2, b2
-        self.Z1 = np.zeros((10,1))
-        self.A1 = np.zeros((10,1))
+        self.Z1 = np.zeros((80,1))
+        self.A1 = np.zeros((80,1))
         self.Z2 = np.zeros((10,1))
         self.A2 = np.zeros((10,1))
         self.grads = None
+
+        # Velocities for momentum
+        self.v_dW1 = np.zeros_like(W1)
+        self.v_db1 = np.zeros_like(b1)
+        self.v_dW2 = np.zeros_like(W2)
+        self.v_db2 = np.zeros_like(b2)
 
     def ReLU(self, Z):
         return np.maximum(Z, 0)
@@ -61,6 +71,21 @@ class NN():
         W2 = W2 - alpha * dW2  
         b2 = b2 - alpha * db2    
         self.theta = W1, b1, W2, b2
+
+    def sgd_momentum(self, alpha, beta):
+        W1, b1, W2, b2 = self.theta
+        dW1, db1, dW2, db2 = self.grads
+
+        self.v_dW1 = beta*dW1 + (1-beta)*self.v_dW1 
+        self.v_db1 = beta*db1 + (1-beta)*self.v_db1
+        self.v_dW2 = beta*dW2 + (1-beta)*self.v_dW2
+        self.v_db2 = beta*db2 + (1-beta)*self.v_db2
+
+        W1 = W1 - alpha * self.v_dW1
+        b1 = b1 - alpha * self.v_db1  
+        W2 = W2 - alpha * self.v_dW2
+        b2 = b2 - alpha * self.v_db2
+        self.theta = W1, b1, W2, b2
     
     def cross_entropy_loss(self, A2, Y):
         m = Y.shape[0]
@@ -79,12 +104,13 @@ alpha=0.15
 epochs=500
 model = NN()
 
+np.random.shuffle(train_data)
+train_data = train_data.T
+Y = train_data[0]
+X = train_data[1:n]
+X = X / 255.
+
 for epoch in range(epochs):
-    np.random.shuffle(train_data)
-    train_data = train_data[:].T
-    Y = train_data[0]
-    X = train_data[1:n]
-    X = X / 255.
 
     loss = 0
     for i in range(0, X.shape[1], batch_size):
@@ -93,9 +119,22 @@ for epoch in range(epochs):
         out = model.forward(X_batch)
         model.backward_prop(X_batch, Y_batch)
         model.basic_sdg(alpha)
+        # model.sgd_momentum(alpha,beta=0.9)
         loss += model.cross_entropy_loss(out, Y_batch)
     if epoch%10 == 0:
-        print("epoch: ", epoch)
+        print(f"Epoch: {epoch}, runing since {time.time() - start_time:.1f} seconds")
         predictions = model.get_predictions(X)
         print('Average loss is: ', loss/batch_size)
-        print('Accuracy is: ', model.get_accuracy(predictions, Y))
+        print('Training Set Accuracy is: ', model.get_accuracy(predictions, Y))
+
+print('Traing is done')
+test_data = test_data.T
+m, n = test_data.shape
+Y = test_data[0]
+X = test_data[1:n]
+X = X / 255.
+predictions = model.get_predictions(X)
+print(f'Test Accuracy is: {model.get_accuracy(predictions, Y)}')
+
+# 0.85 train acc momentum
+# 0.85 train acc basic

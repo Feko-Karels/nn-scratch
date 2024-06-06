@@ -18,3 +18,5 @@ Training Set Accuracy is:  0.9113666666666667
 Traing is done
 Test Accuracy is: 0.91185
 ```
+
+The csv data for MNIST can be found here: https://www.kaggle.com/competitions/digit-recognizer/data
